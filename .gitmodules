@@ -1,0 +1,3 @@
+[submodule "mecanum-if"]
+	path = mecanum-if
+	url = git@github.com:autonomous-embedded/mecanum-if.git
