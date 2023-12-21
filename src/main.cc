@@ -75,18 +75,19 @@ class UartPort {
     close(fd);
   }
 
-  void Write(uint8_t* buffer, int len) {
+  void Write(const char* buffer, int len) {
     write(fd, buffer, len);
   }
 
   void Read() {
     int num_bytes = read(fd, &rx_buffer, 256);
+
     if (num_bytes == 0) {
-      std::cout << "No bytes were read" << std::endl;
+      ROS_INFO("No bytes were read");
     }
 
     if (num_bytes < 0) {
-      std::cout << "UART Error" << std::endl;
+      ROS_INFO("UART Error");
       throw "UART Error";
     }   
   }
@@ -96,10 +97,24 @@ class UartPort {
 UartPort uart("/dev/ttyUSB0");
 
 void handle_geom_twist(const geometry_msgs::Twist::ConstPtr& msg) {
-  
+  ControlRequest ctrl_req;
+  ctrl_req.set_linear_velocity(msg->linear.x);
+  // ctrl_req.set_velocity_offset_angle(msg.angular.z);
+  ctrl_req.set_angular_velocity(msg->angular.z);
+
+  std::string buffer;
+  if (ctrl_req.SerializeToString(&buffer)) {
+    uart.Write(buffer.c_str(), buffer.length());
+  }
+  else {
+    ROS_INFO("serialization error");
+  }
+
 }
 
 int main(int argc, char** argv) {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
   ros::init(argc, argv, "mecanum_driver");
 
   ros::NodeHandle nh;
@@ -107,5 +122,6 @@ int main(int argc, char** argv) {
 
   ros::spin();
 
+  google::protobuf::ShutdownProtobufLibrary();
   return 0; // success
 }
