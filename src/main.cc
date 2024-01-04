@@ -94,13 +94,14 @@ class UartPort {
 };
 
 
-UartPort uart("/dev/ttyUSB0");
+UartPort uart("/dev/ttyACM0");
 
 void handle_geom_twist(const geometry_msgs::Twist::ConstPtr& msg) {
   ControlRequest ctrl_req;
   ctrl_req.set_linear_velocity(msg->linear.x);
   // ctrl_req.set_velocity_offset_angle(msg.angular.z);
   ctrl_req.set_angular_velocity(msg->angular.z);
+  ctrl_req.set_velocity_offset_angle(0);
 
   std::string buffer;
   if (ctrl_req.SerializeToString(&buffer)) {
@@ -109,7 +110,6 @@ void handle_geom_twist(const geometry_msgs::Twist::ConstPtr& msg) {
   else {
     ROS_INFO("serialization error");
   }
-
 }
 
 int main(int argc, char** argv) {
