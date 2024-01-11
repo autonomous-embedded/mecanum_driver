@@ -101,10 +101,14 @@
 serial::Serial uart;
 
 void handle_geom_twist(const geometry_msgs::Twist::ConstPtr& msg) {
+  ROS_INFO("Received: linear.x: %f", msg->linear.x);
+
   ControlRequest ctrl_req;
-  ctrl_req.set_speed_mmps(msg->linear.x);
-  ctrl_req.set_omega(msg->angular.z);
+  ctrl_req.set_speed_mmps(static_cast<int32_t>(msg->linear.x * 1000));
+  ctrl_req.set_omega(static_cast<int32_t>(msg->angular.z*1000));
   ctrl_req.set_rad(0);
+
+  ROS_INFO("Writing serial: speed %d", ctrl_req.speed_mmps());
 
   std::string buffer;
   if (ctrl_req.SerializeToString(&buffer)) {
@@ -119,7 +123,7 @@ int main(int argc, char** argv) {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   try {
-      uart.setPort("/dev/ttyACM0");
+      uart.setPort("/dev/ttyUSB0");
       uart.setBaudrate(19200);
       serial::Timeout to = serial::Timeout::simpleTimeout(1000);
       uart.setTimeout(to);
