@@ -39,11 +39,13 @@ void handle_geom_twist(const geometry_msgs::Twist::ConstPtr& msg) {
   /* A little something for the reader to figure out hehe. Scaling with a magic number like
    * a peasant. It's terrible and I know it.  */
   ctrl_req.set_speed_mmps(static_cast<int32_t>(msg->linear.x * 600));
-  ctrl_req.set_omega(omega);
-  ctrl_req.set_rad(0);
+  ctrl_req.set_omega(0);
+  ctrl_req.set_rad(omega);
 
   std::string buffer;
-  if (ctrl_req.SerializeToString(&buffer)) {
+  bool written = ctrl_req.SerializeToString(&buffer);
+  ROS_INFO("Buffer: %s", buffer.c_str());
+  if (written) {
     uart.write(buffer);
   }
   else {
