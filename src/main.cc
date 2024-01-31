@@ -1,54 +1,55 @@
-#include <stdint.h>
-#include <ros/ros.h>
 #include <geometry_msgs/Twist.h>
+#include <ros/ros.h>
 #include <serial/serial.h>
+#include <stdint.h>
+
 #include "mecanum.pb.h"
 
-static constexpr double pi{3.14159265359};
+static constexpr double PI_VALUE{3.14159265359};
 
-serial::Serial uart;
+serial::Serial gUartHandle;
 
-bool in_range(double val, double left, double right) {
+const bool InRange(double val, double left, double right) {
   return ((val > left) && (val < right));
 }
 
-void handle_geom_twist(const geometry_msgs::Twist::ConstPtr& msg) {
-  ROS_INFO("Received: linear.x: %f", msg->linear.x);
+void HandleGeomTwist(const geometry_msgs::Twist::ConstPtr& msg) {
+  ROS_DEBUG("Received: linear.x: %f", msg->linear.x);
 
-  /* Determine the correct OMEGA value, because someone designed the low-level library
-   * whilst being drunk... (my implementation is also terrible, but whatever) */
-  double omega = pi/2;
-  if (in_range(msg->linear.y, -0.25, 0.25) || msg->linear.y == -0.25 || msg->linear.y == 0.25) {
-    omega = pi/2;
-  } 
-  else if (in_range(msg->linear.y, -0.75, -0.25) || msg->linear.y == -0.75) {
-    omega = pi;
-  }
-  else if (in_range(msg->linear.y, -1, -0.75) || in_range(msg->linear.y, 0.75, 1) ||
-	   msg->linear.y == -1 || msg->linear.y == 1) {
-    omega = 3 * pi/2;
-  }
-  else if (in_range(msg->linear.y, 0.25, 0.75) || msg->linear.y == 0.75) {
+  /* Determine the correct OMEGA value, because someone designed the low-level
+   * library whilst being drunk... (my implementation is also terrible, but
+   * whatever) */
+  double omega = PI_VALUE / 2;
+  if (InRange(msg->linear.y, -0.25, 0.25) || msg->linear.y == -0.25 ||
+      msg->linear.y == 0.25) {
+    omega = PI_VALUE / 2;
+  } else if (InRange(msg->linear.y, -0.75, -0.25) || msg->linear.y == -0.75) {
+    omega = PI_VALUE;
+  } else if (InRange(msg->linear.y, -1, -0.75) ||
+             InRange(msg->linear.y, 0.75, 1) || msg->linear.y == -1 ||
+             msg->linear.y == 1) {
+    omega = 3 * PI_VALUE / 2;
+  } else if (InRange(msg->linear.y, 0.25, 0.75) || msg->linear.y == 0.75) {
     omega = 0;
   }
+
   /* As I said, terrible.
    * I'm ashamed when looking at it after it's been written.
    * I don't care really, so it's up to someone more motivated to update it */
-
   ControlRequest ctrl_req;
-  /* A little something for the reader to figure out hehe. Scaling with a magic number like
-   * a peasant. It's terrible and I know it.  */
+
+  /* A little something for the reader to figure out hehe. Scaling with a magic
+   * number like a peasant. It's terrible and I know it.  */
   ctrl_req.set_speed_mmps(static_cast<int32_t>(msg->linear.x * 600));
   ctrl_req.set_omega(0);
   ctrl_req.set_rad(omega);
 
   std::string buffer;
-  bool written = ctrl_req.SerializeToString(&buffer);
+  const bool written = ctrl_req.SerializeToString(&buffer);
   ROS_INFO("Buffer: %s", buffer.c_str());
   if (written) {
-    uart.write(buffer);
-  }
-  else {
+    gUartHandle.write(buffer);
+  } else {
     ROS_INFO("serialization error");
   }
 }
@@ -57,31 +58,29 @@ int main(int argc, char** argv) {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   try {
-      uart.setPort("/dev/ttyUSB0");
-      uart.setBaudrate(19200);
-      serial::Timeout to = serial::Timeout::simpleTimeout(1000);
-      uart.setTimeout(to);
-      uart.open();
-  }
-  catch (serial::IOException& e) {
-      ROS_ERROR_STREAM("Unable to open port ");
-      return -1;
+    gUartHandle.setPort("/dev/ttyUSB0");
+    gUartHandle.setBaudrate(19200);
+    serial::Timeout to = serial::Timeout::simpleTimeout(1000);
+    gUartHandle.setTimeout(to);
+    gUartHandle.open();
+  } catch (serial::IOException& e) {
+    ROS_ERROR_STREAM("Unable to open port ");
+    return -1;
   }
 
-  if (uart.isOpen()) {
-      ROS_INFO_STREAM("Serial Port initialized");
-  }
-  else {
-      return -1;
+  if (gUartHandle.isOpen()) {
+    ROS_INFO_STREAM("Serial Port initialized");
+  } else {
+    return -1;
   }
 
   ros::init(argc, argv, "mecanum_driver");
 
   ros::NodeHandle nh;
-  ros::Subscriber sub = nh.subscribe("/cmd_vel", 5, handle_geom_twist);
+  ros::Subscriber sub = nh.subscribe("/cmd_vel", 5, HandleGeomTwist);
 
   ros::spin();
 
   google::protobuf::ShutdownProtobufLibrary();
-  return 0; // success
+  return 0;  // success
 }
