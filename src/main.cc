@@ -19,18 +19,18 @@ void HandleGeomTwist(const geometry_msgs::Twist::ConstPtr& msg) {
   /* Determine the correct OMEGA value, because someone designed the low-level
    * library whilst being drunk... (my implementation is also terrible, but
    * whatever) */
-  double omega = PI_VALUE / 2;
+  double angle_of_velocity = PI_VALUE / 2;
   if (InRange(msg->linear.y, -0.25, 0.25) || msg->linear.y == -0.25 ||
       msg->linear.y == 0.25) {
-    omega = PI_VALUE / 2;
+    angle_of_velocity = PI_VALUE / 2;
   } else if (InRange(msg->linear.y, -0.75, -0.25) || msg->linear.y == -0.75) {
-    omega = PI_VALUE;
+    angle_of_velocity = PI_VALUE;
   } else if (InRange(msg->linear.y, -1, -0.75) ||
              InRange(msg->linear.y, 0.75, 1) || msg->linear.y == -1 ||
              msg->linear.y == 1) {
-    omega = 3 * PI_VALUE / 2;
+    angle_of_velocity = 3 * PI_VALUE / 2;
   } else if (InRange(msg->linear.y, 0.25, 0.75) || msg->linear.y == 0.75) {
-    omega = 0;
+    angle_of_velocity = 0;
   }
 
   /* As I said, terrible.
@@ -42,11 +42,17 @@ void HandleGeomTwist(const geometry_msgs::Twist::ConstPtr& msg) {
    * number like a peasant. It's terrible and I know it.  */
   ctrl_req.set_speed_mmps(static_cast<int32_t>(msg->linear.x * 600));
   ctrl_req.set_omega(0);
-  ctrl_req.set_rad(omega);
+  ctrl_req.set_rad(angle_of_velocity);
+
+  if (msg->angular.z != 0.0) {
+    ctrl_req.set_speed_mmps(0);
+    ctrl_req.set_omega(msg->angular.z);
+    ctrl_req.set_rad(0.0);
+  }
 
   std::string buffer;
   const bool written = ctrl_req.SerializeToString(&buffer);
-  ROS_INFO("Buffer: %s", buffer.c_str());
+  ROS_DEBUG("Buffer: %s", buffer.c_str());
   if (written) {
     gUartHandle.write(buffer);
   } else {
